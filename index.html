@@ -180,9 +180,9 @@
   .trend-stat .lbl{color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.5}
 
   /* ---------- datasets ---------- */
-  .ds-card{position:relative}
+  .ds-card{position:relative;overflow:visible}
   .ds-card .badge{
-    position:absolute;top:-14px;left:24px;width:34px;height:34px;border-radius:10px;
+    position:absolute;top:-16px;left:24px;width:34px;height:34px;border-radius:10px;
     display:grid;place-items:center;font-weight:800;font-size:17px;color:#07151f;
     background:linear-gradient(135deg,var(--teal),var(--teal-dim));box-shadow:0 6px 16px -4px rgba(34,211,168,.6);
   }
@@ -218,6 +218,14 @@
   .insight .key{font-size:24px;flex-shrink:0}
   .insight p{font-size:14.5px;line-height:1.7;color:var(--text)}
   .insight b{color:var(--teal)}
+  .spring-note{margin-top:14px;display:flex;gap:15px;align-items:flex-start;
+    background:rgba(240,145,63,.07);border:1px solid var(--orange-dim);border-radius:14px;padding:18px 22px}
+  .spring-note .sp-ic{font-size:21px;flex-shrink:0;line-height:1.4}
+  .spring-note .sp-h{font-weight:700;color:var(--orange);font-size:14.5px;margin-bottom:5px}
+  .spring-note p{font-size:13.5px;line-height:1.65;color:var(--text)}
+  .spring-note b{color:var(--orange);font-weight:700}
+  .spring-note .sp-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--teal);
+    background:rgba(34,211,168,.1);border:1px solid rgba(34,211,168,.22);padding:2px 9px;border-radius:20px;margin-left:5px;white-space:nowrap}
   .footnote{font-size:11.5px;color:var(--muted-2);margin-top:16px;font-style:italic;line-height:1.6}
 
   /* ---------- P2P flow ---------- */
@@ -469,7 +477,14 @@
       </div>
       <div class="insight reveal">
         <span class="key">🔑</span>
-        <p><b>핵심 인사이트</b> · 태양광은 낮 12~15시에 집중되고 풍력은 밤·새벽에 강합니다 → 수요 피크와 공급 최대치가 불일치. 2023년 기준 재생에너지 공급은 전체 수요의 약 <b>9~10%</b> 수준으로, 잉여·부족이 번갈아 발생하는 구조적 불균형이 확인됩니다.</p>
+        <p><b>핵심 인사이트</b> · 재생에너지는 <b>하루 안 시간 편중</b>(태양광 낮·풍력 저녁)과 <b>낮은 공급 비중</b>(약 9~10%) 때문에 시시각각 바뀌는 수요를 따라가지 못해, 잉여와 부족이 번갈아 나타나는 구조적 불균형이 발생합니다.</p>
+      </div>
+      <div class="spring-note reveal" data-d="1">
+        <span class="sp-ic">📅</span>
+        <div>
+          <div class="sp-h">봄철 잉여 신호</div>
+          <p>전력 수요가 연중 최저로 떨어지는 <b>3~5월</b>, 재생에너지 공급 비중은 오히려 연중 최고치(약 <b>10.5%</b>)로 올라 — <b>잉여 전력이 가장 쉽게 발생하는 구간</b>입니다.<span class="sp-tag">월별 차트에서 직접 확인</span></p>
+        </div>
       </div>
       <p class="footnote reveal">※ 전력 수요·재생에너지 공급 수치는 한국전력통계(2023) 기준으로 스케일 보정. 시간대별 패턴은 공공데이터포털 신재생에너지 거래량 데이터 기반 추정.</p>
     </div>
@@ -739,19 +754,29 @@ function buildBarChart(){
 }
 
 /* ---- Line/area chart for monthly series ---- */
-function buildLineChart(id, data, color, yMin, yMax, yStep){
+function buildLineChart(id, data, color, yMin, yMax, yStep, spring){
   const svg=document.getElementById(id);
   const W=480,H=200, pad={t:16,r:14,b:30,l:48};
   const plotW=W-pad.l-pad.r, plotH=H-pad.t-pad.b;
   const months=['1','2','3','4','5','6','7','8','9','10','11','12'];
   const g=el('g',{}); svg.appendChild(g);
+  const xAt=i=>pad.l + plotW*(i/(data.length-1));
+  const yAt=v=>pad.t + plotH*(1-(v-yMin)/(yMax-yMin));
+  // spring (Mar–May) highlight band — drawn first so it sits behind everything
+  if(spring){
+    const x1=(xAt(1)+xAt(2))/2, x2=(xAt(4)+xAt(5))/2;
+    const band=el('rect',{x:x1,y:pad.t,width:x2-x1,height:plotH,fill:css('--orange'),opacity:0});
+    g.appendChild(band);
+    const lbl=el('text',{x:(x1+x2)/2,y:pad.t+12,'text-anchor':'middle',fill:css('--orange'),'font-size':'10','font-weight':'700',opacity:0});
+    lbl.textContent='봄철'; g.appendChild(lbl);
+    requestAnimationFrame(()=>{ band.style.transition='opacity 1s .7s ease'; band.style.opacity='.10';
+      lbl.style.transition='opacity .8s 1s ease'; lbl.style.opacity='.75'; });
+  }
   for(let v=yMin; v<=yMax; v+=yStep){
     const y=pad.t+plotH*(1-(v-yMin)/(yMax-yMin));
     g.appendChild(el('line',{x1:pad.l,y1:y,x2:W-pad.r,y2:y,class:'axis',opacity:v===yMin?'.9':'.22'}));
     const t=el('text',{x:pad.l-8,y:y+4,class:'axis-txt','text-anchor':'end'}); t.textContent=v>=1000?(v/1000)+'k':v; g.appendChild(t);
   }
-  const xAt=i=>pad.l + plotW*(i/(data.length-1));
-  const yAt=v=>pad.t + plotH*(1-(v-yMin)/(yMax-yMin));
   months.forEach((m,i)=>{ if(i%2===0||i===data.length-1){const t=el('text',{x:xAt(i),y:H-pad.b+20,class:'axis-txt','text-anchor':'middle'}); t.textContent=m+'월'; g.appendChild(t);} });
   // area + line path
   let line='', area='';
@@ -783,8 +808,8 @@ const chartObs=new IntersectionObserver((entries)=>{
     if(e.isIntersecting && !chartsBuilt){
       chartsBuilt=true;
       buildBarChart();
-      buildLineChart('demandChart',[52000,45000,43000,41000,40000,43000,55000,54000,43000,43000,46000,50000],css('--blue'),35000,60000,5000);
-      buildLineChart('supplyChart',[4700,4200,4400,4300,4200,4000,4800,4600,4100,4200,4300,4500],css('--teal'),3800,4800,250);
+      buildLineChart('demandChart',[52000,45000,43000,41000,40000,43000,55000,54000,43000,43000,46000,50000],css('--blue'),35000,60000,5000,true);
+      buildLineChart('supplyChart',[4700,4200,4400,4300,4200,4000,4800,4600,4100,4200,4300,4500],css('--teal'),3800,4800,250,true);
       chartObs.disconnect();
     }
   });
